@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.GameProxy;
@@ -99,6 +99,7 @@ public static class Services
         services.AddSingleton<IAuraMonitorService, AuraMonitorService>();
         services.AddSingleton<IJunkService, JunkService>();
         services.AddSingleton<BackgroundThemeService>();
+        services.AddSingleton<IClientMessagingService, ClientMessagingService>();
 
         return services;
     }
