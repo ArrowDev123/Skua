@@ -7,6 +7,7 @@ namespace Skua.Core.Services;
 
 public class ClientUpdateService : IClientUpdateService
 {
+    private const string UpdateRepository = "https://github.com/ArrowDev123/Skua";
     private readonly IDialogService _dialogService;
     private readonly ISettingsService _settingsService;
     private UpdateManager? _updateManager;
@@ -79,7 +80,7 @@ public class ClientUpdateService : IClientUpdateService
 
         if (!nightly)
             return new UpdateManager(
-                new GithubSource("https://github.com/auqw/Skua", null, true),
+                new GithubSource(UpdateRepository, null, true),
                 new UpdateOptions
                 {
                     ExplicitChannel = "win",
@@ -87,7 +88,7 @@ public class ClientUpdateService : IClientUpdateService
                 });
 
         return new UpdateManager(
-            new GithubSource("https://github.com/auqw/Skua", null, true),
+            new GithubSource(UpdateRepository, null, true),
             new UpdateOptions
             {
                 ExplicitChannel = "nightly",
