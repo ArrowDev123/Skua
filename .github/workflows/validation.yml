@@ -2,9 +2,12 @@ name: Validation
 
 on:
   workflow_call:
-  push:
-    branches:
-      - '**'
+    inputs:
+      build-release:
+        description: 'Build the Release configuration during validation.'
+        required: false
+        type: boolean
+        default: true
   pull_request:
 
 permissions:
@@ -26,12 +29,13 @@ jobs:
 
       - name: Restore solution
         shell: pwsh
-        run: dotnet restore .\Skua.sln -m:1 --nologo
+        run: dotnet restore .\Skua.sln -m --nologo
 
       - name: Build Debug
         shell: pwsh
-        run: dotnet build .\Skua.sln -c Debug -m:1 --no-restore --nologo
+        run: dotnet build .\Skua.sln -c Debug -m --no-restore --nologo
 
       - name: Build Release
+        if: ${{ inputs.build-release }}
         shell: pwsh
-        run: dotnet build .\Skua.sln -c Release -m:1 --no-restore --nologo
+        run: dotnet build .\Skua.sln -c Release -m --no-restore --nologo

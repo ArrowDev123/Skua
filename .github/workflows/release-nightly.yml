@@ -16,6 +16,8 @@ jobs:
   validate:
     name: Validate nightly source
     uses: ./.github/workflows/validation.yml
+    with:
+      build-release: false
     permissions:
       contents: read
 
