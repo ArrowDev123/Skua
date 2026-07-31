@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Skua.App.Avalonia.Views.DiagnosticsView">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="8" RowSpacing="8">
+        <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding MonitoringStatus}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding LastUpdated}" Opacity="0.7" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+            <Border Grid.Row="0" Grid.Column="0" Classes="card" Padding="8">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="Process" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Process}" />
+                    <TextBlock Text="{Binding CpuTime}" />
+                    <TextBlock Text="{Binding Threads, StringFormat=Threads: {0}}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="1" Classes="card" Padding="8">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="Memory" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding WorkingSet, StringFormat=Working set: {0}}" />
+                    <TextBlock Text="{Binding ManagedHeap, StringFormat=Managed heap: {0}}" />
+                    <TextBlock Text="{Binding TotalAllocated, StringFormat=Allocated: {0}}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="2" Classes="card" Padding="8">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="Runtime" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Collections}" />
+                    <TextBlock Text="{Binding ThreadPool}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Classes="card" Padding="8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Recent events" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <ListBox ItemsSource="{Binding Events}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Timestamp}" Opacity="0.7" />
+                                <TextBlock Grid.Column="1" Text="{Binding Category}" />
+                                <TextBlock Grid.Column="2" Text="{Binding Name}" />
+                                <TextBlock Grid.Column="3" Text="{Binding Value}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -218,6 +218,12 @@ public class ClientSettings
     [JsonPropertyName("UseLocalVSC")]
     public bool UseLocalVSC { get; set; } = true;
 
+    [JsonPropertyName("UserCustomScriptsFolder")]
+    public string UserCustomScriptsFolder { get; set; } = string.Empty;
+
+    [JsonPropertyName("UserCustomScriptsList")]
+    public StringCollection UserCustomScriptsList { get; set; } = new();
+
     [JsonPropertyName("UserOptions")]
     public StringCollection UserOptions { get; set; } = new();
 
@@ -239,6 +245,8 @@ public class ClientSettings
     public void InitializeDefaults()
     {
         UserOptions ??= new();
+        UserCustomScriptsFolder ??= string.Empty;
+        UserCustomScriptsList ??= new();
 
         if (FastTravels == null || FastTravels.Count == 0)
         {

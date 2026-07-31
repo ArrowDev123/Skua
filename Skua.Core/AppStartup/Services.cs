@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
+using Skua.Core.Interfaces.Services;
 using Skua.Core.Scripts;
 using Skua.Core.Services;
 using Skua.Core.Utils;
@@ -22,6 +23,8 @@ public static class Services
         services.AddSingleton<IGetScriptsService, GetScriptsService>();
         services.AddSingleton<IProcessService, ProcessStartService>();
         services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
+        services.AddSingleton<ICustomScriptService, CustomScriptService>();
+        services.AddSingleton<IScriptPathResolver, ScriptPathResolver>();
 
         return services;
     }

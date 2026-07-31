@@ -4,6 +4,7 @@ using Skua.App.Avalonia.ViewModels;
 using Skua.App.Avalonia.ViewModels.AdvancedSkills;
 using Skua.App.Avalonia.ViewModels.AppLogs;
 using Skua.App.Avalonia.ViewModels.CoreBotsOptions;
+using Skua.App.Avalonia.ViewModels.Diagnostics;
 using Skua.App.Avalonia.ViewModels.Dialogs;
 using Skua.App.Avalonia.ViewModels.FastTravel;
 using Skua.App.Avalonia.ViewModels.Grabber;
@@ -121,6 +122,7 @@ public static class Services
             s.GetRequiredService<GameOptionsViewModel>(),
             s.GetRequiredService<ApplicationOptionsViewModel>(),
             s.GetRequiredService<ConsoleViewModel>(),
+            s.GetRequiredService<DiagnosticsViewModel>(),
             s.GetRequiredService<AdvancedSkillsViewModel>(),
             s.GetRequiredService<PacketInterceptorViewModel>(),
             s.GetRequiredService<PacketSpammerViewModel>(),
@@ -152,6 +154,7 @@ public static class Services
         services.AddSingleton(PacketInterceptor.CreateViewModel);
 
         services.AddTransient<ConsoleViewModel>();
+        services.AddSingleton<DiagnosticsViewModel>();
 
         services.AddSingleton<ScriptRepoViewModel>();
         services.AddSingleton<ScriptLoaderViewModel>();

@@ -47,6 +47,8 @@ Use separate internal policies for source includes and assembly references. Do n
 
 ## Ownership
 
+The first implementation slice now provides migration-safe client settings, custom-folder/file discovery, a canonical path resolver, and ScriptManager integration for root and nested `//cs_include`/`//cs_ref` directives. Manager Options owns custom-folder configuration, while the Manager Scripts tab and client Search Scripts view merge discovered files into the normal script search list.
+
 Primary files:
 
 - new path/source models under `Skua.Core.Models`;

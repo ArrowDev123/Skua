@@ -18,6 +18,26 @@
             <sharedSettings:OptionSectionControl Title="Dev Options"
                                                  ItemsSource="{Binding DevOptions}" />
 
+            <Border Classes="card"
+                    Padding="8">
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="8">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Custom Scripts Folder"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CustomScriptsFolder}"
+                                   Foreground="{DynamicResource SkuaMutedTextBrush}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="Choose Folder"
+                            Command="{Binding SelectCustomScriptsFolderCommand}" />
+                    <Button Grid.Column="2"
+                            Content="Clear"
+                            Command="{Binding ClearCustomScriptsFolderCommand}" />
+                </Grid>
+            </Border>
+
             <sharedControls:IconTextButton Height="36"
                                            Command="{Binding OpenGHAuthCommand}"
                                            IconKind="Github"

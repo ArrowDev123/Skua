@@ -4,10 +4,12 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
+using Skua.Core.Interfaces.Services;
 using Skua.Core.Messaging;
 using Skua.Manager.Avalonia.ViewModels;
 using Skua.Shared.Avalonia.ViewModels;
 using Skua.Shared.Avalonia.ViewModels.Options;
+using Skua.Shared.Avalonia.ViewModels.ScriptRepo;
 using System;
 using System.Collections.Generic;
 
@@ -20,6 +22,7 @@ internal class SkuaManager
         List<TabItemViewModel> tabs = new()
         {
             new((string)"Accounts", s.GetRequiredService<AccountManagerViewModel>()),
+            new((string)"Scripts", s.GetRequiredService<ScriptRepoViewModel>()),
             new((string)"Launcher", s.GetRequiredService<LauncherViewModel>()),
             new((string)"Updates", s.GetRequiredService<ClientUpdatesViewModel>()),
             new((string)"Options", s.GetRequiredService<ManagerOptionsViewModel>()),
@@ -54,7 +57,12 @@ internal class SkuaManager
                 Ioc.Default.GetRequiredService<ISettingsService>().Get("AnonymiseAccounts", false))
         };
 
-        return new(options, devOptions, s.GetRequiredService<ISettingsService>());
+        return new(
+            options,
+            devOptions,
+            s.GetRequiredService<ISettingsService>(),
+            s.GetRequiredService<ICustomScriptService>(),
+            s.GetRequiredService<IFileDialogService>());
 
         static RelayCommand<T> CreateSettingCommand<T>(string key) => new(b => Ioc.Default.GetRequiredService<ISettingsService>().Set(key, b));
         static CommandOptionItemViewModel<T> CreateSettingOptionItem<T>(string content, string description, string key) => new(content, description, key, (IRelayCommand)CreateSettingCommand<T>(key), Ioc.Default.GetRequiredService<ISettingsService>().Get<T>(key));

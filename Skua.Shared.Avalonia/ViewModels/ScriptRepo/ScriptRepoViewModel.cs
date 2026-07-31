@@ -2,22 +2,30 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
+using Skua.Core.Interfaces.Services;
 using Skua.Core.Messaging;
+using Skua.Core.Models;
 using Skua.Core.Models.GitHub;
+using Skua.Core.Models.Scripts;
 using Skua.Core.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.ObjectModel;
 
 namespace Skua.Shared.Avalonia.ViewModels.ScriptRepo;
 
 public partial class ScriptRepoViewModel : BotControlViewModelBase
 {
-    public ScriptRepoViewModel(IGetScriptsService getScripts, IProcessService processService)
+    public ScriptRepoViewModel(
+        IGetScriptsService getScripts,
+        IProcessService processService,
+        ICustomScriptService customScripts)
         : base("Search Scripts", 800, 450)
     {
         _getScriptsService = getScripts;
         _processService = processService;
+        _customScripts = customScripts;
         OpenScriptFolderCommand = new RelayCommand(_processService.OpenVSC);
     }
 
@@ -29,6 +37,7 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
 
     private readonly IGetScriptsService _getScriptsService;
     private readonly IProcessService _processService;
+    private readonly ICustomScriptService _customScripts;
 
     [ObservableProperty]
     private bool _isManagerMode;
@@ -55,10 +64,12 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
 
     public int DownloadedQuantity => _getScriptsService?.Downloaded ?? 0;
     public int OutdatedQuantity => _getScriptsService?.Outdated ?? 0;
-    public int ScriptQuantity => _getScriptsService?.Total ?? 0;
+    public int ScriptQuantity => (_getScriptsService?.Total ?? 0) + _customScriptCount;
     public int BotScriptQuantity => _scripts.Count;
     public bool ShowStartButton => !IsManagerMode;
     public IRelayCommand OpenScriptFolderCommand { get; }
+
+    private int _customScriptCount;
 
     partial void OnIsManagerModeChanged(bool value) => OnPropertyChanged(nameof(ShowStartButton));
     partial void OnSearchTextChanged(string value) => ApplySearchFilter();
@@ -91,9 +102,30 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
     private async Task RefreshScriptsList()
     {
         _scripts.Clear();
+        List<ScriptInfoViewModel> scriptViewModels = new();
+        foreach (ScriptSource source in _customScripts.Discover())
+        {
+            if (!source.Exists)
+                continue;
+
+            scriptViewModels.Add(new(
+                new ScriptInfo
+                {
+                    Name = Path.GetFileName(source.FullPath),
+                    Description = string.Empty,
+                    Tags = Array.Empty<string>(),
+                    FilePath = source.FullPath,
+                    FileName = Path.GetFileName(source.FullPath),
+                    Size = (int)new FileInfo(source.FullPath).Length,
+                    DownloadUrl = string.Empty
+                },
+                source.FullPath,
+                true));
+        }
+        _customScriptCount = scriptViewModels.Count;
         if (_getScriptsService?.Scripts != null)
         {
-            List<ScriptInfoViewModel> scriptViewModels = await Task.Run(() =>
+            List<ScriptInfoViewModel> repositoryScripts = await Task.Run(() =>
             {
                 List<ScriptInfoViewModel> viewModels = new();
                 foreach (ScriptInfo script in _getScriptsService.Scripts)
@@ -112,9 +144,10 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
                 }
                 return viewModels;
             });
-            _scripts.AddRange(scriptViewModels);
+            scriptViewModels.AddRange(repositoryScripts);
         }
 
+        _scripts.AddRange(scriptViewModels);
         ApplySearchFilter();
         OnPropertyChanged(nameof(Scripts));
         OnPropertyChanged(nameof(DownloadedQuantity));
@@ -209,6 +242,7 @@ public partial class ScriptRepoViewModel : BotControlViewModelBase
         {
             source = source.Where(s =>
                 s.FileName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                s.DisplayPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 s.InfoTags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase)));
         }
 

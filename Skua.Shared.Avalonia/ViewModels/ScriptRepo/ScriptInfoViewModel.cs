@@ -10,17 +10,25 @@ namespace Skua.Shared.Avalonia.ViewModels.ScriptRepo;
 
 public partial class ScriptInfoViewModel : ObservableObject
 {
-    public ScriptInfoViewModel(ScriptInfo info)
+    public ScriptInfoViewModel(ScriptInfo info, string? localFileOverride = null, bool isCustom = false)
     {
         Info = info;
-        _downloaded = Info.Downloaded;
+        _localFileOverride = localFileOverride;
+        IsCustom = isCustom;
+        _downloaded = DownloadedFileExists;
     }
 
     public ScriptInfo Info { get; }
+    private readonly string? _localFileOverride;
+
     public string FileName => Info.Name;
     public int Size => Info.Size;
-    public string LocalFile => Info.LocalFile;
+    public string LocalFile => _localFileOverride ?? Info.LocalFile;
     public string FilePath => Info.FilePath;
+    public bool IsCustom { get; }
+    public string DisplayPath => IsCustom ? LocalFile : ScriptPath;
+
+    private bool DownloadedFileExists => File.Exists(LocalFile);
     public string ScriptPath => Path.Combine(ClientFileSources.SkuaScriptsDIR, FilePath.Replace("/", "\\"));
 
     private ObservableCollection<string>? _infoTags;
@@ -30,7 +38,7 @@ public partial class ScriptInfoViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Outdated))]
     private bool _downloaded;
 
-    public bool Outdated => Downloaded && Info.LocalSize != Info.Size;
+    public bool Outdated => !IsCustom && Downloaded && Info.LocalSize != Info.Size;
 
     [RelayCommand]
     private void LoadScript(ScriptInfoViewModel selectedScript)

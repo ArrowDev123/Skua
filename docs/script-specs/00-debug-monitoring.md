@@ -88,7 +88,7 @@ Prefer a small internal diagnostics abstraction in `Skua.Core` with adapters for
 - packet/proxy aggregation;
 - structured local event output.
 
-The initial implementation is `IDiagnosticsService` in `Skua.Core.Interfaces`, `DiagnosticsService` in `Skua.Core`, and bounded diagnostic models in `Skua.Core.Models`. It is registered by common Core services and started/stopped by both Avalonia hosts. It currently samples every five seconds, retains up to 120 snapshots and 512 events, and does not write files or expose UI yet.
+The implementation is `IDiagnosticsService` in `Skua.Core.Interfaces`, `DiagnosticsService` in `Skua.Core`, and bounded diagnostic models in `Skua.Core.Models`. It is registered by common Core services and started/stopped by both Avalonia hosts. It samples every five seconds, retains up to 120 snapshots and 512 events, and is inspectable through the client Diagnostics window when enabled. ScriptManager now emits bounded compile, include-compile, start, stop, and failure events through the same service.
 
 Use monotonic timestamps for durations. Use allocation-free or low-allocation paths for disabled mode. Keep an in-memory bounded ring buffer for the latest diagnostic events and expose a snapshot API for a future debug panel. A rolling local diagnostic file may be added for trace sessions, with size limits and atomic rotation.
 

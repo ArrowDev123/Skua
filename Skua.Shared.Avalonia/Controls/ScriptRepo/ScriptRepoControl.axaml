@@ -79,7 +79,7 @@
                                     <TextBlock Grid.Row="3"
                                                Grid.Column="0"
                                                Foreground="{DynamicResource SkuaMutedTextBrush}"
-                                               Text="{Binding ScriptPath, StringFormat='Path: {0}', TargetNullValue='Path: '}" />
+                                               Text="{Binding DisplayPath, StringFormat='Path: {0}', TargetNullValue='Path: '}" />
 
                                     <StackPanel Grid.RowSpan="4"
                                                 Grid.Column="1"

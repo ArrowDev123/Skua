@@ -5,6 +5,7 @@ using Skua.App.Avalonia.ViewModels;
 using Skua.App.Avalonia.ViewModels.AdvancedSkills;
 using Skua.App.Avalonia.ViewModels.AppLogs;
 using Skua.App.Avalonia.ViewModels.CoreBotsOptions;
+using Skua.App.Avalonia.ViewModels.Diagnostics;
 using Skua.App.Avalonia.ViewModels.FastTravel;
 using Skua.App.Avalonia.ViewModels.Grabber;
 using Skua.App.Avalonia.ViewModels.HotKeys;
@@ -47,6 +48,7 @@ internal class MainMenu
         windowService.RegisterManagedWindow("Grabber", s.GetRequiredService<GrabberViewModel>());
         windowService.RegisterManagedWindow("Stats", s.GetRequiredService<ScriptStatsViewModel>());
         windowService.RegisterManagedWindow("Console", s.GetRequiredService<ConsoleViewModel>());
+        windowService.RegisterManagedWindow("Diagnostics", s.GetRequiredService<DiagnosticsViewModel>());
 
         windowService.RegisterManagedWindow("Skills", s.GetRequiredService<AdvancedSkillsViewModel>());
 
@@ -81,7 +83,8 @@ internal class MainMenu
                 new("Grabber"),
                 new("Junk Items"),
                 new("Stats"),
-                new("Console")
+                new("Console"),
+                new("Diagnostics")
             }),
             new("Skills"),
             new("Packets", new List<MainMenuItemViewModel>()

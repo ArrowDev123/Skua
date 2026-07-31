@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Skua.Core.Interfaces;
+using Skua.Core.Interfaces.Services;
 using Skua.Core.Services;
 using Skua.Manager.Avalonia.ViewModels;
 using Skua.Shared.Avalonia.ViewModels;
@@ -24,7 +25,10 @@ public static class Services
         services.AddSingleton<GitHubAuthViewModel>();
         services.AddSingleton<ScriptRepoViewModel>(s =>
         {
-            ScriptRepoViewModel vm = new(s.GetRequiredService<IGetScriptsService>(), s.GetRequiredService<IProcessService>())
+            ScriptRepoViewModel vm = new(
+                s.GetRequiredService<IGetScriptsService>(),
+                s.GetRequiredService<IProcessService>(),
+                s.GetRequiredService<ICustomScriptService>())
             {
                 IsManagerMode = true
             };

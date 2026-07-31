@@ -29,7 +29,9 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         Lazy<IScriptSkill> skills,
         Lazy<IScriptDrop> drops,
         Lazy<IScriptWait> wait,
-        Lazy<IAuraMonitorService> auraMonitorService)
+        Lazy<IAuraMonitorService> auraMonitorService,
+        IDiagnosticsService diagnostics,
+        IScriptPathResolver pathResolver)
     {
         _lazyBot = scriptInterface;
         _lazyHandlers = handlers;
@@ -38,6 +40,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         _lazyWait = wait;
         _lazyAuraMonitor = auraMonitorService;
         _logger = logger;
+        _diagnostics = diagnostics;
+        _pathResolver = pathResolver;
     }
 
     private readonly Lazy<IScriptInterface> _lazyBot;
@@ -47,6 +51,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     private readonly Lazy<IScriptWait> _lazyWait;
     private readonly Lazy<IAuraMonitorService> _lazyAuraMonitor;
     private readonly ILogService _logger;
+    private readonly IDiagnosticsService _diagnostics;
+    private readonly IScriptPathResolver _pathResolver;
 
     private IScriptHandlers Handlers => _lazyHandlers.Value;
     private IScriptSkill Skills => _lazySkills.Value;
@@ -93,6 +99,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             }
             ScriptRunning = true;
         }
+
+        using IDiagnosticActivity startActivity = _diagnostics.BeginActivity("Script", "Start");
 
         try
         {
@@ -200,6 +208,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     UnloadPreviousScript();
                     ScriptCts?.Dispose();
                     ScriptCts = null;
+                    _diagnostics.RecordEvent("Script", "Stopped");
                     StrongReferenceMessenger.Default.Send<ScriptStoppedMessage, int>((int)MessageChannels.ScriptStatus);
                     ScriptRunning = false;
                 }
@@ -216,6 +225,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             }
 
             StrongReferenceMessenger.Default.Send<ScriptStartedMessage, int>((int)MessageChannels.ScriptStatus);
+            _diagnostics.RecordEvent("Script", "Started");
 
             if (needsConfig)
             {
@@ -234,6 +244,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         }
         catch (Exception e)
         {
+            _diagnostics.RecordEvent("Script", "StartFailed");
             lock (_threadLock)
             {
                 ScriptRunning = false;
@@ -255,6 +266,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
     public async ValueTask StopScript(bool runScriptStoppingEvent = true)
     {
+        _diagnostics.RecordEvent("Script", "StopRequested");
         lock (_stateLock)
         {
             _runScriptStoppingBool = runScriptStoppingEvent;
@@ -321,6 +333,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     [RequiresUnreferencedCode("This method may require code that cannot be statically analyzed for trimming. Use with caution.")]
     public object? Compile(string source)
     {
+        using IDiagnosticActivity compileActivity = _diagnostics.BeginActivity("Script", "Compile");
         CheckScriptVersionRequirement(source);
 
         Stopwatch sw = Stopwatch.StartNew();
@@ -364,6 +377,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             _currentLoadContext = loadContext;
         }
 
+        using IDiagnosticActivity includeActivity = _diagnostics.BeginActivity("Script", "CompileIncludes");
         List<string> compiledIncludes = CompileIncludedFiles(references, loadContext);
 
         references.UnionWith(compiledIncludes);
@@ -453,19 +467,15 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             switch (cmd)
             {
                 case "ref":
-                    string local = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
-                    if (File.Exists(local))
+                    string? local = ResolveImport(LoadedScript, parts[1]);
+                    if (local is not null)
                         references.Add(local);
-                    else if (File.Exists(parts[1]))
-                        references.Add(parts[1]);
                     break;
 
                 case "include":
-                    string localSource = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
-                    if (File.Exists(localSource))
+                    string? localSource = ResolveImport(LoadedScript, parts[1]);
+                    if (localSource is not null)
                         filesToInclude.Add(localSource);
-                    else if (File.Exists(parts[1]))
-                        filesToInclude.Add(parts[1]);
                     break;
             }
             linesToRemove.Add(lineStr);
@@ -501,6 +511,15 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         }
 
         return string.Join(Environment.NewLine, filteredLines).Trim();
+    }
+
+    private string? ResolveImport(string ownerFile, string specifier)
+    {
+        Skua.Core.Models.Scripts.ScriptPathResolution resolution = _pathResolver.Resolve(ownerFile, specifier);
+        if (resolution.IsAmbiguous)
+            _diagnostics.RecordEvent("Script", "ImportAmbiguous");
+
+        return resolution.SelectedPath;
     }
 
     private void DiscoverAllIncludes(HashSet<string> references)
@@ -542,7 +561,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 try
                 {
                     string fileContent = File.ReadAllText(currentFile);
-                    List<string> newIncludes = ExtractIncludeDirectivesFromSource(fileContent, references);
+                    List<string> newIncludes = ExtractIncludeDirectivesFromSource(fileContent, currentFile, references);
 
 
                     if (newIncludes.Count > 0)
@@ -559,15 +578,13 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                             _includedFilesLock.EnterWriteLock();
                             try
                             {
-                                HashSet<string> existingNames = new(StringComparer.OrdinalIgnoreCase);
+                                HashSet<string> existingPaths = new(StringComparer.OrdinalIgnoreCase);
                                 foreach (string existing in _includedFiles)
-                                {
-                                    existingNames.Add(Path.GetFileName(existing));
-                                }
+                                    existingPaths.Add(existing);
 
                                 foreach (string include in filesToAdd)
                                 {
-                                    if (existingNames.Add(Path.GetFileName(include)))
+                                    if (existingPaths.Add(include))
                                     {
                                         _includedFiles.Add(include);
                                         foundNewFiles = true;
@@ -590,7 +607,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
     }
 
-    private List<string> ExtractIncludeDirectivesFromSource(string source, HashSet<string> references)
+    private List<string> ExtractIncludeDirectivesFromSource(string source, string ownerFile, HashSet<string> references)
     {
         List<string> includes = new();
         ReadOnlySpan<char> sourceSpan = source.AsSpan();
@@ -614,19 +631,15 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     switch (cmd)
                     {
                         case "ref":
-                            string refLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
-                            if (File.Exists(refLocal))
+                            string? refLocal = ResolveImport(ownerFile, parts[1]);
+                            if (refLocal is not null)
                                 references.Add(refLocal);
-                            else if (File.Exists(parts[1]))
-                                references.Add(parts[1]);
                             break;
 
                         case "include":
-                            string includeLocal = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
-                            if (File.Exists(includeLocal))
+                            string? includeLocal = ResolveImport(ownerFile, parts[1]);
+                            if (includeLocal is not null)
                                 includes.Add(includeLocal);
-                            else if (File.Exists(parts[1]))
-                                includes.Add(parts[1]);
                             break;
                     }
                 }
@@ -752,18 +765,11 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
 #endif
 
-        Dictionary<string, string> filenameLookup = new(StringComparer.OrdinalIgnoreCase);
         List<string> includedFilesSnapshot;
         _includedFilesLock.EnterReadLock();
         try
         {
             includedFilesSnapshot = new List<string>(_includedFiles);
-            foreach (string file in _includedFiles)
-            {
-                string filename = Path.GetFileName(file);
-                if (!filenameLookup.ContainsKey(filename))
-                    filenameLookup[filename] = file;
-            }
         }
         finally
         {
@@ -774,31 +780,22 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         {
             string includeSource = File.ReadAllText(includedFile);
             CheckScriptVersionRequirement(includeSource);
-            List<string> deps = ExtractIncludeDependencies(includeSource);
+            List<string> deps = ExtractIncludeDependencies(includeSource, includedFile);
             List<string> normalizedDeps = new();
             foreach (string dep in deps)
             {
-                if (filenameLookup.TryGetValue(Path.GetFileName(dep), out string? matchingFile))
+                bool containsDep;
+                _includedFilesLock.EnterReadLock();
+                try
                 {
-                    normalizedDeps.Add(matchingFile);
+                    containsDep = _includedFiles.Contains(dep);
                 }
-                else
+                finally
                 {
-                    bool containsDep;
-                    _includedFilesLock.EnterReadLock();
-                    try
-                    {
-                        containsDep = _includedFiles.Contains(dep);
-                    }
-                    finally
-                    {
-                        _includedFilesLock.ExitReadLock();
-                    }
-                    if (containsDep)
-                    {
-                        normalizedDeps.Add(dep);
-                    }
+                    _includedFilesLock.ExitReadLock();
                 }
+                if (containsDep)
+                    normalizedDeps.Add(dep);
             }
             dependencyGraph[includedFile] = normalizedDeps;
 
@@ -1048,7 +1045,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 }
             }
 
-            string processedInclude = ProcessIncludeDirectives(includeSource, ref includeReferences);
+            string processedInclude = ProcessIncludeDirectives(includeSource, includedFile, ref includeReferences);
 
             Compiler includeCompiler = Ioc.Default.GetRequiredService<Compiler>();
             includeCompiler.AddDefaultReferencesAndNamespaces();
@@ -1211,7 +1208,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         }
     }
 
-    private List<string> ExtractIncludeDependencies(string source)
+    private List<string> ExtractIncludeDependencies(string source, string ownerFile)
     {
         List<string> dependencies = new();
         ReadOnlySpan<char> sourceSpan = source.AsSpan();
@@ -1231,11 +1228,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 string[] parts = lineStr.Split((char[])null!, 2, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 2)
                 {
-                    string includePath = parts[1];
-                    string localPath = Path.Combine(ClientFileSources.SkuaScriptsDIR, includePath.Replace("Scripts/", ""));
-                    if (File.Exists(localPath))
-                        dependencies.Add(localPath);
-                    else if (File.Exists(includePath))
+                    string? includePath = ResolveImport(ownerFile, parts[1]);
+                    if (includePath is not null)
                         dependencies.Add(includePath);
                 }
             }
@@ -1247,7 +1241,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     }
 
 
-    private string ProcessIncludeDirectives(string source, ref HashSet<string> references)
+    private string ProcessIncludeDirectives(string source, string ownerFile, ref HashSet<string> references)
     {
         List<string> linesToRemove = new();
         ReadOnlySpan<char> sourceSpan = source.AsSpan();
@@ -1278,11 +1272,9 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             string cmd = parts[0][5..];
             if (cmd == "ref")
             {
-                string local = Path.Combine(ClientFileSources.SkuaScriptsDIR, parts[1].Replace("Scripts/", ""));
-                if (File.Exists(local))
+                string? local = ResolveImport(ownerFile, parts[1]);
+                if (local is not null)
                     references.Add(local);
-                else if (File.Exists(parts[1]))
-                    references.Add(parts[1]);
             }
 
             linesToRemove.Add(new string(sourceSpan[start..(start + newlinePos + 1)]));

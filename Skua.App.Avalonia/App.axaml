@@ -13,6 +13,7 @@
              xmlns:packets="clr-namespace:Skua.App.Avalonia.ViewModels.Packets"
              xmlns:options="clr-namespace:Skua.App.Avalonia.ViewModels.Options"
              xmlns:coreBotsOptions="clr-namespace:Skua.App.Avalonia.ViewModels.CoreBotsOptions"
+             xmlns:diagnostics="clr-namespace:Skua.App.Avalonia.ViewModels.Diagnostics"
              xmlns:hotKeys="clr-namespace:Skua.App.Avalonia.ViewModels.HotKeys"
              xmlns:appLogs="clr-namespace:Skua.App.Avalonia.ViewModels.AppLogs"
              xmlns:scriptRepo="clr-namespace:Skua.Shared.Avalonia.ViewModels.ScriptRepo;assembly=Skua.Shared.Avalonia"
@@ -105,6 +106,9 @@
     </DataTemplate>
     <DataTemplate DataType="vms:ConsoleViewModel">
       <views:ConsoleView />
+    </DataTemplate>
+    <DataTemplate DataType="diagnostics:DiagnosticsViewModel">
+      <views:DiagnosticsView />
     </DataTemplate>
     <DataTemplate DataType="vms:ScriptStatsViewModel">
       <views:ScriptStatsView />
