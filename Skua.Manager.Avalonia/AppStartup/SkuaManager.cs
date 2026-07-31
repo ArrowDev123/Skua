@@ -34,10 +34,10 @@ internal class SkuaManager
     {
         List<DisplayOptionItemViewModelBase> options = new()
         {
+            CreateSettingOptionItem<bool>("Use Nightly Builds", "Opt in to the rolling nightly Velopack channel.", nameof(Skua.Core.Models.ManagerSettings.UseNightlyBuilds)),
+            CreateSettingOptionItem<bool>("Auto-download Nightly Builds", "Download and restart for nightly updates when available.", nameof(Skua.Core.Models.ManagerSettings.AutoUpdateNightlyBuilds)),
             CreateSettingOptionItem<bool>("Use Manager theme on Skua", "Whether to use, when launching from the Launcher tab, the same theme as the Manager in any launched App", "syncTheme"),
-            CreateSettingOptionItem<bool>("Check for Client Updates", "Whether to check for client updates when launching the Manager", "CheckClientUpdates"),
-            CreateSettingOptionItem<bool>("Check for Client Prereleases", "Whether to check for pre-releases when checking updates", "CheckClientPrereleases"),
-            CreateSettingOptionItem<bool>("Delete .zip after Download", "Whether to delete the .zip folder after downloading and extracting the new version", "DeleteZipFileAfter")
+            CreateSettingOptionItem<bool>("Check for Client Updates", "Whether to check for client updates when launching the Manager", "CheckClientUpdates")
         };
 
         List<DisplayOptionItemViewModelBase> devOptions = new()
@@ -54,7 +54,7 @@ internal class SkuaManager
                 Ioc.Default.GetRequiredService<ISettingsService>().Get("AnonymiseAccounts", false))
         };
 
-        return new(options, devOptions, s.GetRequiredService<ISettingsService>(), s.GetRequiredService<IFileDialogService>());
+        return new(options, devOptions, s.GetRequiredService<ISettingsService>());
 
         static RelayCommand<T> CreateSettingCommand<T>(string key) => new(b => Ioc.Default.GetRequiredService<ISettingsService>().Set(key, b));
         static CommandOptionItemViewModel<T> CreateSettingOptionItem<T>(string content, string description, string key) => new(content, description, key, (IRelayCommand)CreateSettingCommand<T>(key), Ioc.Default.GetRequiredService<ISettingsService>().Get<T>(key));

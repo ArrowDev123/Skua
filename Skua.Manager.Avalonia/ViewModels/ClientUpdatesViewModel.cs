@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
 using Skua.Core.Messaging;
 using Skua.Core.Models;
-using Skua.Core.Models.GitHub;
 using Skua.Core.Utils;
 using Skua.Shared.Avalonia.ViewModels;
 using System;
@@ -17,19 +16,17 @@ namespace Skua.Manager.Avalonia.ViewModels;
 
 public partial class ClientUpdatesViewModel : BotControlViewModelBase
 {
-    public ClientUpdatesViewModel(IClientUpdateService updateService, ISettingsService settingsService, IGetScriptsService scriptsService, IDialogService dialogService)
+    public ClientUpdatesViewModel(IClientUpdateService updateService, IGetScriptsService scriptsService, IDialogService dialogService, ISettingsService settingsService)
         : base("Client Updates")
     {
-        StrongReferenceMessenger.Default.Register<ClientUpdatesViewModel, DownloadClientUpdateMessage>(this, DownloadUpdate);
         StrongReferenceMessenger.Default.Register<ClientUpdatesViewModel, UpdateScriptsMessage>(this, ReceiveUpdateScriptsMessage);
         StrongReferenceMessenger.Default.Register<ClientUpdatesViewModel, CheckClientUpdateMessage>(this, CheckUpdate);
 
         _updateService = updateService;
-        _settingsService = settingsService;
         _scriptsService = scriptsService;
         _dialogService = dialogService;
+        _settingsService = settingsService;
         Current = ClientFileSources.AssemblyVersion;
-        _appVersion = Version.Parse(Current);
         _progress = new Progress<string>(p => ProgressStatus = p);
     }
 
@@ -37,7 +34,7 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
     {
         await recipient.Refresh();
 
-        if (recipient.UpdateVisible && recipient._dialogService.ShowMessageBox($"New update available: {recipient.Latest?.Name}\r\nDo you want to download it?", "Update Available", true) == true)
+        if (recipient.UpdateVisible && recipient._dialogService.ShowMessageBox($"New update available: {recipient.Latest}\r\nDo you want to download it?", "Update Available", true) == true)
             await recipient.Update();
     }
 
@@ -54,7 +51,7 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
 
     protected override void OnActivated()
     {
-        if (Releases.Count == 0)
+        if (Latest is null)
             Refresh();
     }
 
@@ -64,14 +61,11 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
         base.OnDeactivated();
     }
 
-    private readonly ISettingsService _settingsService;
     private readonly IGetScriptsService _scriptsService;
     private readonly IDialogService _dialogService;
+    private readonly ISettingsService _settingsService;
     private readonly IClientUpdateService _updateService;
-    private readonly Version _appVersion;
     private readonly IProgress<string> _progress;
-
-    public RangedObservableCollection<ClientUpdateItemViewModel> Releases { get; } = new();
 
     public string Current { get; }
 
@@ -88,7 +82,7 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
     private bool _updateVisible;
 
     [ObservableProperty]
-    private UpdateInfo? _latest;
+    private string? _latest;
 
     [RelayCommand]
     public async Task Refresh()
@@ -97,27 +91,19 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
         Status = "Loading...";
         try
         {
-            await _updateService.GetReleasesAsync();
+            await _updateService.CheckForUpdateAsync();
+            UpdateVisible = _updateService.UpdateAvailable;
+            Latest = _updateService.LatestVersion;
+            Status = UpdateVisible ? $"Update available: {Latest}" : "You have the latest version";
 
-            bool checkPrereleases = _settingsService.Get("CheckClientPrereleases", false);
-            UpdateInfo? latest = _updateService.Releases.FirstOrDefault(r => checkPrereleases || !r.Prerelease);
-            UpdateVisible = latest?.ParsedVersion.CompareTo(_appVersion) > 0;
-
-            if (UpdateVisible)
-                Latest = latest;
-
-            Releases.Clear();
-            foreach (UpdateInfo release in _updateService.Releases)
-            {
-                if (checkPrereleases || !release.Prerelease)
-                    Releases.Add(new(release));
-            }
-
-            Status = UpdateVisible ? "Update available" : "You have the latest version";
+            if (UpdateVisible
+                && _settingsService.Get("UseNightlyBuilds", false)
+                && _settingsService.Get("AutoUpdateNightlyBuilds", false))
+                await Update();
         }
         catch
         {
-            Status = "Error while getting releases";
+            Status = "Error while checking for updates";
         }
         finally
         {
@@ -128,23 +114,14 @@ public partial class ClientUpdatesViewModel : BotControlViewModelBase
     [RelayCommand]
     public async Task Update()
     {
-        if (Latest is null)
+        if (!UpdateVisible)
             return;
 
         IsBusy = true;
-        await _updateService.DownloadUpdateAsync(_progress, Latest);
+        await _updateService.DownloadUpdateAsync(_progress);
         await Task.Delay(1000);
         ProgressStatus = null;
         IsBusy = false;
-    }
-
-    private async void DownloadUpdate(ClientUpdatesViewModel recipient, DownloadClientUpdateMessage message)
-    {
-        recipient.IsBusy = true;
-        await recipient._updateService.DownloadUpdateAsync(recipient._progress, message.UpdateInfo);
-        await Task.Delay(1000);
-        recipient.ProgressStatus = null;
-        recipient.IsBusy = false;
     }
 
     [RelayCommand]

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
 using Skua.Core.Messaging;
+using Skua.Core.Models;
 using Skua.Core.Utils;
 using Skua.Shared.Avalonia.ViewModels;
 using System.Collections.Generic;
@@ -19,7 +20,7 @@ public partial class ManagerMainViewModel : ObservableRecipient
         _dialogService = dialogService;
         _settingsService = settingsService;
         _isAuthenticated = !string.IsNullOrEmpty(_settingsService.Get<string>("UserGitHubToken"));
-        _title = $"Skua Manager - {_settingsService.Get("ApplicationVersion", "0.0.0.0")}";
+        _title = $"Skua Manager - {ClientFileSources.DisplayVersion}";
     }
 
     [ObservableProperty]

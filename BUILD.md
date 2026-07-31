@@ -37,10 +37,10 @@ The script follows Velopack's documented build/stage/package workflow:
 .\Publish-Velopack.ps1 -Configuration Release -Runtime win-x64
 ```
 
-For a local nightly package, use the nightly channel and a prerelease version:
+For a local nightly package, use the nightly channel and a commit-qualified version:
 
 ```powershell
-.\Publish-Velopack.ps1 -Configuration Release -Runtime win-x64 -Channel nightly -Version 2.0.0-nightly.1
+.\Publish-Velopack.ps1 -Configuration Release -Runtime win-x64 -Channel nightly -Version 2.0.0-5c56629
 ```
 
 The script builds the solution, stages both Avalonia outputs, then runs the pinned Velopack CLI (`vpk` 1.2.0). Install `vpk` globally with:
@@ -53,6 +53,6 @@ Release files are written to `artifacts\velopack\releases`.
 
 ## CI/CD
 
-`.github/workflows/validation.yml` restores and builds Debug and Release for pushes and pull requests, and is reused as the release gate. `.github/workflows/release-stable.yml` packages the `win` channel when a plain `v2.0.0` tag is pushed. `.github/workflows/release-nightly.yml` packages the `nightly` channel on schedule or from the default branch manually, replacing the single GitHub `nightly` prerelease. `.github/workflows/update-changelog.yml` keeps the client-facing `changelogs.md` synchronized with published stable releases.
+`.github/workflows/validation.yml` restores and builds Debug and Release for pushes and pull requests, and is reused as the release gate. `.github/workflows/release-stable.yml` packages the `win` channel when a plain `v2.0.0` tag is pushed. `.github/workflows/release-nightly.yml` packages the `nightly` channel on default-branch commits, replacing the single GitHub `nightly` prerelease. `.github/workflows/update-changelog.yml` keeps the client-facing `changelogs.md` synchronized with published stable releases.
 
 Push a tag such as `v2.0.0` to validate, package, and publish a GitHub Release containing the Velopack setup, portable archive, package, and channel metadata.

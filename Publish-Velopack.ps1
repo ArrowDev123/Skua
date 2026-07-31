@@ -35,7 +35,7 @@ $managerOutput = Join-Path $root ("Skua.Manager.Avalonia\bin\{0}\net10.0" -f $Co
 dotnet restore '.\Skua.sln' -m:1 --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Solution restore failed.' }
 
-dotnet build '.\Skua.sln' -c $Configuration -m:1 --no-restore --nologo
+dotnet build '.\Skua.sln' -c $Configuration -m:1 --no-restore --nologo -p:Version=$packVersion -p:AssemblyInformationalVersion=$packVersion
 if ($LASTEXITCODE -ne 0) { throw 'Solution build failed.' }
 
 if (Test-Path -LiteralPath $artifactRoot) {

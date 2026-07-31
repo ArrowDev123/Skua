@@ -278,17 +278,15 @@ public class ClientSettings
 
 public class ManagerSettings
 {
+    [JsonPropertyName(nameof(UseNightlyBuilds))]
+    public bool UseNightlyBuilds { get; set; } = false;
+
+    [JsonPropertyName(nameof(AutoUpdateNightlyBuilds))]
+    public bool AutoUpdateNightlyBuilds { get; set; } = false;
+
     [JsonPropertyName("CheckClientUpdates")]
     public bool CheckClientUpdates { get; set; } = true;
 
-    [JsonPropertyName("CheckClientPrereleases")]
-    public bool CheckClientPrereleases { get; set; } = false;
-
-    [JsonPropertyName("ClientDownloadPath")]
-    public string ClientDownloadPath { get; set; } = string.Empty;
-
-    [JsonPropertyName("DeleteZipFileAfter")]
-    public bool DeleteZipFileAfter { get; set; } = false;
 
     [JsonPropertyName("ChangeLogActivated")]
     public bool ChangeLogActivated { get; set; } = false;
@@ -312,13 +310,7 @@ public class ManagerSettings
     [JsonExtensionData]
     public Dictionary<string, object>? ExtensionData { get; set; }
 
-    public void InitializeDefaults()
-    {
-        if (string.IsNullOrEmpty(ClientDownloadPath))
-            ClientDownloadPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Skua");
-
-        ManagedAccounts ??= new(StringComparer.OrdinalIgnoreCase);
-    }
+    public void InitializeDefaults() => ManagedAccounts ??= new(StringComparer.OrdinalIgnoreCase);
 }
 
 public class SettingsRoot

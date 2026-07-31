@@ -18,28 +18,6 @@
             <sharedSettings:OptionSectionControl Title="Dev Options"
                                                  ItemsSource="{Binding DevOptions}" />
 
-            <Border Classes="card">
-                <StackPanel Spacing="6">
-                    <StackPanel Spacing="1">
-                        <TextBlock Text="Client Download Folder"
-                                   FontWeight="SemiBold" />
-                        <TextBlock Text="Used for saving downloaded client update packages."
-                                   FontSize="11"
-                                   Foreground="{DynamicResource SkuaMutedTextBrush}" />
-                    </StackPanel>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBox Grid.Column="0"
-                                 IsReadOnly="True"
-                                 Text="{Binding DownloadPath, FallbackValue=Client Download Folder}"
-                                 Margin="0,0,8,0" />
-                        <sharedControls:IconTextButton Grid.Column="1"
-                                                       Command="{Binding ChangeDownloadPathCommand}"
-                                                       IconKind="FolderEditOutline"
-                                                       Text="Browse" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
             <sharedControls:IconTextButton Height="36"
                                            Command="{Binding OpenGHAuthCommand}"
                                            IconKind="Github"

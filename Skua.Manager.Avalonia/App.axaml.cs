@@ -62,6 +62,9 @@ public partial class App : Application
     {
         var mainWindow = new Views.MainWindow();
         mainWindow.Show();
+
+        if (Ioc.Default.GetRequiredService<ISettingsService>().Get("CheckClientUpdates", true))
+            _ = Ioc.Default.GetRequiredService<ClientUpdatesViewModel>().Refresh();
     }
 
     // Full theme changes can include base theme + multiple palette slots, so we always

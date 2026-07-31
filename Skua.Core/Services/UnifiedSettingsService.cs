@@ -303,17 +303,6 @@ public class UnifiedSettingsService
             if (bool.TryParse(val?.ToString(), out bool check))
                 newRoot.Manager.CheckClientUpdates = check;
 
-        if (oldData.TryGetValue("CheckClientPrereleases", out val))
-            if (bool.TryParse(val?.ToString(), out bool checkPre))
-                newRoot.Manager.CheckClientPrereleases = checkPre;
-
-        if (oldData.TryGetValue("ClientDownloadPath", out val))
-            newRoot.Manager.ClientDownloadPath = val?.ToString() ?? string.Empty;
-
-        if (oldData.TryGetValue("DeleteZipFileAfter", out val))
-            if (bool.TryParse(val?.ToString(), out bool deleteZip))
-                newRoot.Manager.DeleteZipFileAfter = deleteZip;
-
         if (oldData.TryGetValue("ChangeLogActivated", out val))
             if (bool.TryParse(val?.ToString(), out bool changeLog))
                 newRoot.Manager.ChangeLogActivated = changeLog;

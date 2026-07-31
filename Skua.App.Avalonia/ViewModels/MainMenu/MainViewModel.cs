@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Skua.Core.Interfaces;
 using Skua.Core.Messaging;
+using Skua.Core.Models;
 
 namespace Skua.App.Avalonia.ViewModels.MainMenu;
 
@@ -14,7 +15,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
-        _title = $"Skua - {Ioc.Default.GetRequiredService<ISettingsService>().Get("ApplicationVersion", "0.0.0.0")}";
+        _title = $"Skua - {ClientFileSources.DisplayVersion}";
     }
 
     [RelayCommand]
