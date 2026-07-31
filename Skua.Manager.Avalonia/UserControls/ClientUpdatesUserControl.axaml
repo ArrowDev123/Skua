@@ -16,12 +16,6 @@
                                            IsEnabled="{Binding UpdateVisible}"
                                            IconKind="ArrowUpBold"
                                            Text="Update Latest" />
-            <sharedControls:IconTextButton Command="{Binding UpdateScriptsCommand}"
-                                           IconKind="ScriptTextPlayOutline"
-                                           Text="Update Scripts" />
-            <sharedControls:IconTextButton Command="{Binding ResetScriptsCommand}"
-                                           IconKind="Restore"
-                                           Text="Reset Scripts" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="0,8,0,8" Spacing="4">
@@ -45,7 +39,7 @@
 
         <TextBlock Grid.Row="3"
                    Margin="0,8,0,0"
-                   Text="Manage client versions and script updates from this tab."
+                   Text="Manage client versions from this tab."
                    Foreground="{DynamicResource SkuaMutedTextBrush}" />
     </Grid>
 </UserControl>
