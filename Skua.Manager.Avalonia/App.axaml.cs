@@ -63,6 +63,8 @@ public partial class App : Application
     private void OnStartup(object? sender, ControlledApplicationLifetimeStartupEventArgs e)
     {
         var mainWindow = new Views.MainWindow();
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.MainWindow = mainWindow;
         mainWindow.Show();
 
         if (Ioc.Default.GetRequiredService<ISettingsService>().Get("CheckClientUpdates", true))

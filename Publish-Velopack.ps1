@@ -59,8 +59,9 @@ $vpkArguments = @(
     '--packDir', $publishRoot,
     '--mainExe', 'Skua.Manager.exe',
     '--outputDir', $releaseRoot,
-    '--packTitle', 'Skua',
+    '--packTitle', 'Skua Manager',
     '--icon', '.\Skua.Shared.Avalonia\Assets\SkuaIcon.ico',
+    '--shortcuts', 'Desktop,StartMenuRoot',
     '--framework', $framework
 )
 

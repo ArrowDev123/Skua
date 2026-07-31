@@ -9,6 +9,7 @@ using Skua.Shared.Avalonia.ViewModels;
 using Skua.Shared.Avalonia.ViewModels.Options;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Skua.Manager.Avalonia.ViewModels;
 
@@ -27,7 +28,7 @@ public class ManagerOptionsViewModel : ObservableObject
         _customScripts = customScripts;
         _fileDialogService = fileDialogService;
         OpenGHAuthCommand = new RelayCommand(OpenGHAuthDialog);
-        SelectCustomScriptsFolderCommand = new RelayCommand(SelectCustomScriptsFolder);
+        SelectCustomScriptsFolderCommand = new AsyncRelayCommand(SelectCustomScriptsFolderAsync);
         ClearCustomScriptsFolderCommand = new RelayCommand(ClearCustomScriptsFolder);
     }
 
@@ -39,7 +40,7 @@ public class ManagerOptionsViewModel : ObservableObject
     private readonly IFileDialogService _fileDialogService;
 
     public IRelayCommand OpenGHAuthCommand { get; }
-    public IRelayCommand SelectCustomScriptsFolderCommand { get; }
+    public IAsyncRelayCommand SelectCustomScriptsFolderCommand { get; }
     public IRelayCommand ClearCustomScriptsFolderCommand { get; }
     public string CustomScriptsFolder
     {
@@ -50,12 +51,12 @@ public class ManagerOptionsViewModel : ObservableObject
         }
     }
 
-    private void SelectCustomScriptsFolder()
+    private async Task SelectCustomScriptsFolderAsync()
     {
         string initialDirectory = CustomScriptsFolder == "Not configured"
             ? ClientFileSources.SkuaDIR
             : CustomScriptsFolder;
-        string? folder = _fileDialogService.OpenFolder(initialDirectory);
+        string? folder = await _fileDialogService.OpenFolderAsync(initialDirectory);
         if (string.IsNullOrWhiteSpace(folder))
             return;
 

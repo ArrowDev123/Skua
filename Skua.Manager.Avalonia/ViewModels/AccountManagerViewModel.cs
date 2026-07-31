@@ -10,6 +10,7 @@ using Skua.Core.Messaging;
 using Skua.Core.Models;
 using Skua.Core.Models.Servers;
 using Skua.Core.Utils;
+using Skua.Manager.Avalonia.Services;
 using Skua.Shared.Avalonia.ViewModels;
 using Skua.Shared.Avalonia.ViewModels.Dialogs;
 using Skua.Shared.Avalonia.ViewModels.ScriptRepo;
@@ -52,7 +53,7 @@ public sealed partial class AccountManagerViewModel : BotControlViewModelBase
         _syncThemes = _settingsService.Get("syncTheme", false);
     }
 
-    private readonly string _exePath = Path.Combine(AppContext.BaseDirectory, "Skua.exe");
+    private readonly string _exePath = SkuaExecutableLocator.ExecutablePath;
     private readonly ISettingsService _settingsService;
     private readonly IDialogService _dialogService;
     private readonly IFileDialogService _fileService;
@@ -334,7 +335,7 @@ public sealed partial class AccountManagerViewModel : BotControlViewModelBase
                     "-s",
                     SelectedServer?.Name ?? "Twilly"
                 },
-                WorkingDirectory = AppContext.BaseDirectory
+                WorkingDirectory = SkuaExecutableLocator.WorkingDirectory
             };
 
             if (_syncThemes)

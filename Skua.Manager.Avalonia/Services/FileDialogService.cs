@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Skua.Manager.Avalonia.Services;
 
@@ -39,6 +40,11 @@ public class FileDialogService : IFileDialogService
     public string? OpenFolder() => OpenFolder(ClientFileSources.SkuaDIR);
 
     public string? OpenFolder(string initialDirectory)
+        => OpenFolderAsync(initialDirectory).GetAwaiter().GetResult();
+
+    public Task<string?> OpenFolderAsync() => OpenFolderAsync(ClientFileSources.SkuaDIR);
+
+    public async Task<string?> OpenFolderAsync(string initialDirectory)
     {
         IStorageProvider? provider = GetStorageProvider();
         if (provider == null)
@@ -47,10 +53,10 @@ public class FileDialogService : IFileDialogService
         FolderPickerOpenOptions options = new()
         {
             AllowMultiple = false,
-            SuggestedStartLocation = ResolveFolder(provider, initialDirectory)
+            SuggestedStartLocation = await ResolveFolderAsync(provider, initialDirectory)
         };
 
-        IReadOnlyList<IStorageFolder> folders = provider.OpenFolderPickerAsync(options).GetAwaiter().GetResult();
+        IReadOnlyList<IStorageFolder> folders = await provider.OpenFolderPickerAsync(options);
         return folders.FirstOrDefault()?.TryGetLocalPath();
     }
 
@@ -106,6 +112,13 @@ public class FileDialogService : IFileDialogService
         if (string.IsNullOrWhiteSpace(initialDirectory))
             return null;
         return provider.TryGetFolderFromPathAsync(initialDirectory).GetAwaiter().GetResult();
+    }
+
+    private static async Task<IStorageFolder?> ResolveFolderAsync(IStorageProvider provider, string initialDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(initialDirectory))
+            return null;
+        return await provider.TryGetFolderFromPathAsync(initialDirectory);
     }
 
     private static List<FilePickerFileType> ParseFilters(string filters)

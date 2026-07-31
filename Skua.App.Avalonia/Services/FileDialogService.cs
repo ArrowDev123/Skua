@@ -1,5 +1,6 @@
 using Skua.Core.Interfaces;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Skua.App.Avalonia.Services;
 
@@ -39,6 +40,10 @@ public class FileDialogService : IFileDialogService
 
         return dialog.ShowDialog() == WinForms.DialogResult.OK ? dialog.SelectedPath : null;
     }
+
+    public Task<string?> OpenFolderAsync() => Task.FromResult(OpenFolder());
+
+    public Task<string?> OpenFolderAsync(string initialDirectory) => Task.FromResult(OpenFolder(initialDirectory));
 
     public IEnumerable<string>? OpenText()
     {
@@ -99,6 +104,16 @@ public class FileDialogService : IFileDialogService
     }
 
     public string? OpenFolder(string initialDirectory)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    public Task<string?> OpenFolderAsync()
+    {
+        throw new System.NotImplementedException();
+    }
+
+    public Task<string?> OpenFolderAsync(string initialDirectory)
     {
         throw new System.NotImplementedException();
     }

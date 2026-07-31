@@ -5,6 +5,7 @@ using Skua.Core.Interfaces;
 using Skua.Core.Messaging;
 using Skua.Core.Models;
 using Skua.Core.Utils;
+using Skua.Manager.Avalonia.Services;
 using Skua.Shared.Avalonia.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -80,7 +81,14 @@ public partial class LauncherViewModel : BotControlViewModelBase, IDisposable
 
             try
             {
-                Process? proc = Process.Start("./Skua.exe", args);
+                ProcessStartInfo startInfo = new(SkuaExecutableLocator.ExecutablePath)
+                {
+                    WorkingDirectory = SkuaExecutableLocator.WorkingDirectory
+                };
+                foreach (string arg in args)
+                    startInfo.ArgumentList.Add(arg);
+
+                Process? proc = Process.Start(startInfo);
                 if (proc != null)
                 {
                     ProcessInfo procInfo = new(proc, $"Skua #{proc.Id}");
@@ -91,7 +99,7 @@ public partial class LauncherViewModel : BotControlViewModelBase, IDisposable
             {
                 IDialogService dialogService = Ioc.Default.GetService<IDialogService>()!;
 
-                dialogService.ShowMessageBox("Failed to launch Skua. Make sure Skua.exe is in the same folder as Skua.Manager.exe.", "Error");
+                dialogService.ShowMessageBox($"Failed to launch Skua. Executable path: {SkuaExecutableLocator.ExecutablePath}", "Error");
             }
         });
     }

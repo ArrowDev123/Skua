@@ -143,7 +143,12 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         Accounts = accounts;
         _settingsService = settingsService;
 
-        Version = Version.Parse(settingsService.Get("ApplicationVersion", "0.0.0.0"));
+        string applicationVersion = settingsService.Get("ApplicationVersion", "0.0.0.0");
+        int versionSuffix = applicationVersion.IndexOfAny(['-', '+']);
+        if (versionSuffix >= 0)
+            applicationVersion = applicationVersion[..versionSuffix];
+
+        Version = Version.Parse(applicationVersion);
 
         _stateChannel = new GameStateChannel(_ => { }, 100);
         _stateChannel.Start();
@@ -340,7 +345,7 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         if (connDetail == "null")
             return (Environment.TickCount, connDetail);
         if (connDetail.Contains("has been lost") && !_waitForLogin)
-            _ = OnLogout();
+            BeginLogout();
         else if (Environment.TickCount - lastConnChange >= Options.LoadTimeout && connDetail == lastConnDetail && !_waitForLogin)
         {
             if (connDetail.Contains("loading map"))
@@ -614,7 +619,7 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
                         if (parts.Length >= 5 && parts[4] == "logout")
                         {
                             Messenger.Send<LogoutMessage, int>((int)MessageChannels.GameEvents);
-                            _ = OnLogout();
+                            BeginLogout();
                         }
                         break;
                 }
@@ -632,10 +637,9 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         if (!Options.AutoRelogin || _waitForLogin)
             return;
 
-        if (_reloginTask is not null && !_waitForLogin)
+        if (_reloginTask is { IsCompleted: false })
         {
             Log("Re-login task already running.");
-            _waitForLogin = true;
             return;
         }
 
@@ -649,22 +653,55 @@ public class ScriptInterface : IScriptInterface, IScriptInterfaceManager, IDispo
         Relogin((!Options.SafeRelogin && !kicked) ? Options.ReloginTryDelay : 70000, wasRunning);
     }
 
+    private async void BeginLogout()
+    {
+        try
+        {
+            await OnLogout();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Auto re-login failed: {ex}");
+            Log($"Auto re-login failed: {ex.Message}");
+        }
+    }
+
     private void Relogin(int delay, bool startScript)
     {
         Servers.Logout();
         Log($"Waiting {delay}ms for re-login.");
-        _reloginCTS = new CancellationTokenSource();
+        CancellationTokenSource reloginCts = new();
+        _reloginCTS = reloginCts;
         _reloginTask = Schedule(delay, async _ =>
         {
-            Stats.Relogins++;
-            bool relogged = await Servers.EnsureRelogin(_reloginCTS.Token);
-            if (startScript)
-                await Ioc.Default.GetService<IScriptManager>()!.StartScript();
-            Log($"Re-login was {(relogged ? "successful" : "cancelled or unsuccessful")}.");
-            _reloginCTS.Dispose();
-            _reloginCTS = null;
-            _reloginTask = null;
-            _waitForLogin = false;
+            try
+            {
+                Stats.Relogins++;
+                bool relogged = await Servers.EnsureRelogin(reloginCts.Token);
+                if (startScript)
+                    await Ioc.Default.GetService<IScriptManager>()!.StartScript();
+                Log($"Re-login was {(relogged ? "successful" : "cancelled or unsuccessful")}.");
+            }
+            catch (OperationCanceledException) when (reloginCts.IsCancellationRequested)
+            {
+                Log("Auto re-login cancelled.");
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Auto re-login task failed: {ex}");
+                Log($"Auto re-login failed: {ex.Message}");
+            }
+            finally
+            {
+                if (ReferenceEquals(_reloginCTS, reloginCts))
+                {
+                    _reloginCTS = null;
+                    _reloginTask = null;
+                    _waitForLogin = false;
+                }
+
+                reloginCts.Dispose();
+            }
         });
     }
 

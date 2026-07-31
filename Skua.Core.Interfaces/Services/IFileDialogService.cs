@@ -12,6 +12,10 @@ public interface IFileDialogService
 
     string? OpenFolder(string initialDirectory);
 
+    Task<string?> OpenFolderAsync();
+
+    Task<string?> OpenFolderAsync(string initialDirectory);
+
     IEnumerable<string>? OpenText();
 
     string? Save();

@@ -10,6 +10,7 @@
         <ApplicationIcon>../Skua.Shared.Avalonia/Assets/SkuaIcon.ico</ApplicationIcon>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AssemblyName>Skua</AssemblyName>
+        <AssemblyTitle>Skua</AssemblyTitle>
     </PropertyGroup>
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
