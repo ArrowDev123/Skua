@@ -40,6 +40,7 @@ public partial class App : Application
         services.AddSkuaManagerViewModels();
 
         Ioc.Default.ConfigureServices(services.BuildServiceProvider());
+        Ioc.Default.GetRequiredService<IDiagnosticsService>().Start();
         Ioc.Default.GetRequiredService<ISettingsService>().SetApplicationVersion();
         IThemeService themeService = Ioc.Default.GetRequiredService<IThemeService>();
         themeService.ThemeChanged += OnThemeChanged;
@@ -53,6 +54,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.Startup += OnStartup;
+            desktop.Exit += OnDesktopExit;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -65,6 +67,11 @@ public partial class App : Application
 
         if (Ioc.Default.GetRequiredService<ISettingsService>().Get("CheckClientUpdates", true))
             _ = Ioc.Default.GetRequiredService<ClientUpdatesViewModel>().Refresh();
+    }
+
+    private async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    {
+        await Ioc.Default.GetRequiredService<IDiagnosticsService>().DisposeAsync();
     }
 
     // Full theme changes can include base theme + multiple palette slots, so we always

@@ -56,6 +56,7 @@ public partial class App : Application
         services.AddSkuaMainAppViewModels();
 
         Ioc.Default.ConfigureServices(services.BuildServiceProvider());
+        Ioc.Default.GetRequiredService<IDiagnosticsService>().Start();
         ISettingsService settings = Ioc.Default.GetRequiredService<ISettingsService>();
         settings.SetApplicationVersion();
         FlashTrustManager.EnsureTrustFile();
@@ -143,6 +144,8 @@ public partial class App : Application
 
     private static async void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
+        await Ioc.Default.GetRequiredService<IDiagnosticsService>().DisposeAsync();
+
         try
         {
             Ioc.Default.GetRequiredService<ICaptureProxy>().Stop();

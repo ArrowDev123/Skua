@@ -21,6 +21,7 @@ public static class Services
         services.AddSingleton<IDecamelizer, Decamelizer>();
         services.AddSingleton<IGetScriptsService, GetScriptsService>();
         services.AddSingleton<IProcessService, ProcessStartService>();
+        services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
 
         return services;
     }
