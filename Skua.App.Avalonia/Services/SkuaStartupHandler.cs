@@ -67,7 +67,7 @@ public sealed class SkuaStartupHandler : IDisposable
 
         Task.Factory.StartNew(() =>
         {
-            _bot.Servers.Relogin(string.IsNullOrWhiteSpace(_options.Server) ? "Twilly" : _options.Server!);
+            _bot.Servers.EnsureRelogin(string.IsNullOrWhiteSpace(_options.Server) ? "Twilly" : _options.Server!);
             if (!string.IsNullOrWhiteSpace(_options.Script))
                 StrongReferenceMessenger.Default.Send<StartScriptMessage, int>(new(_options.Script!), (int)MessageChannels.ScriptStatus);
         });

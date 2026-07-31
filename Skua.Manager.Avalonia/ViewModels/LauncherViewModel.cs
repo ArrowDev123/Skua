@@ -72,6 +72,13 @@ public partial class LauncherViewModel : BotControlViewModelBase, IDisposable
                 args.Add(_settingsService.Get("CurrentTheme", "no-theme"));
             }
 
+            string server = _settingsService.Get("LastServer", "Twilly");
+            if (!string.IsNullOrWhiteSpace(server))
+            {
+                args.Add("-s");
+                args.Add(server);
+            }
+
             string token = _settingsService.Get("UserGitHubToken", string.Empty);
             if (!string.IsNullOrEmpty(token))
             {
