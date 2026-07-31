@@ -1,1 +1,0 @@
-pwsh ./Build-Skua.ps1 -Platforms "x64"

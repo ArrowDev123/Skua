@@ -89,7 +89,6 @@ StyleCopReport.xml
 *.tlh
 *.tmp
 *.tmp_proj
-*_wpftmp.csproj
 *.log
 *.vspscc
 *.vssscc
@@ -362,32 +361,14 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Installers
-# /Skua.Installer
-# /Skua.Installer.Dependencies
-/Installers
 /VSCode-x64/VSCode
 /VSCode-x86/VSCode
 
-# ignore installers bin, obj, and installs folders
-/Skua.Installer/obj
-/Skua.Installer/bin
-/Skua.Installer/Installs
-
-/Skua.App.WPF/App.config
-/Skua.App.WPF.Follower
 /Build
 /Assets
-/Skua.App.WPF/Properties/launchSettings.json
-/Skua.Installer/ComponentsGenerated.wxs
-/Skua.Installer/FFDecComponentsGenerated.wxs
 /ignore
 desktop.ini
 WARP.md
-Skua.Installer/ComponentsGenerated.wxs
-Skua.Installer/FFDecComponentsGenerated.wxs
-Skua.Installer/ComponentsGenerated.wxs
-Skua.Installer/FFDecComponentsGenerated.wxs
 .aider*
 
 # Avalonia migration local artifacts
