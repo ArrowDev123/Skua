@@ -69,9 +69,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $files = Get-ChildItem -LiteralPath 'artifacts/velopack/releases' -File | ForEach-Object FullName
+          $files = Get-ChildItem -LiteralPath 'artifacts/velopack/releases' -File |
+              Where-Object {
+                  $_.Name -match '^(releases\.nightly\.json|Skua-.*-nightly-full\.nupkg|Skua-nightly-(Setup\.exe|Portable\.zip))$'
+              } |
+              ForEach-Object FullName
           if (-not $files) {
-              throw 'No Velopack release files were produced.'
+              throw 'No deployable nightly release files were produced.'
           }
 
           $title = 'Skua Nightly ' + $env:RELEASE_VERSION
