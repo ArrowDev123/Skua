@@ -15,14 +15,22 @@ public sealed partial class DiagnosticsViewModel : BotControlViewModelBase, IDis
 {
     private readonly IDiagnosticsService _diagnosticsService;
     private readonly IDispatcherService _dispatcherService;
+    private readonly IFileDialogService _fileDialogService;
+    private readonly IDialogService _dialogService;
     private CancellationTokenSource? _refreshCancellation;
     private Task? _refreshTask;
 
-    public DiagnosticsViewModel(IDiagnosticsService diagnosticsService, IDispatcherService dispatcherService)
+    public DiagnosticsViewModel(
+        IDiagnosticsService diagnosticsService,
+        IDispatcherService dispatcherService,
+        IFileDialogService fileDialogService,
+        IDialogService dialogService)
         : base("Diagnostics", 900, 600)
     {
         _diagnosticsService = diagnosticsService;
         _dispatcherService = dispatcherService;
+        _fileDialogService = fileDialogService;
+        _dialogService = dialogService;
         Refresh();
     }
 
@@ -73,6 +81,24 @@ public sealed partial class DiagnosticsViewModel : BotControlViewModelBase, IDis
     {
         StopRefresh();
         base.OnDeactivated();
+    }
+
+    [RelayCommand]
+    private async Task Export()
+    {
+        string? path = _fileDialogService.Save("JSON Files (*.json)|*.json");
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        try
+        {
+            await _diagnosticsService.ExportAsync(path);
+            LastUpdated = $"Exported: {System.IO.Path.GetFileName(path)}";
+        }
+        catch (Exception exception)
+        {
+            _dialogService.ShowMessageBox($"Could not export diagnostics.\r\n{exception.Message}", "Diagnostics Export Error");
+        }
     }
 
     [RelayCommand]

@@ -3,6 +3,7 @@
              x:Class="Skua.App.Avalonia.Views.DiagnosticsView">
     <Grid RowDefinitions="Auto,Auto,*" Margin="8" RowSpacing="8">
         <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" Content="Export" Command="{Binding ExportCommand}" />
             <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}" />
             <StackPanel Spacing="2">
                 <TextBlock Text="{Binding MonitoringStatus}" FontWeight="SemiBold" />

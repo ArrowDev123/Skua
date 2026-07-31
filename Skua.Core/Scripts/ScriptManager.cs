@@ -72,6 +72,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     private readonly ReaderWriterLockSlim _includedFilesLock = new();
     private readonly List<string> _includedFiles = new();
     private ScriptLoadContext? _currentLoadContext;
+    private string? _scriptRunId;
 
     [ObservableProperty]
     private bool _scriptRunning = false;
@@ -81,6 +82,14 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
     [ObservableProperty]
     private string _compiledScript = string.Empty;
+
+    private string? GetScriptCorrelationId()
+    {
+        lock (_threadLock)
+        {
+            return _scriptRunId;
+        }
+    }
 
     public IScriptOptionContainer? Config { get; set; }
 
@@ -98,9 +107,16 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                 return new Exception("Script already running.");
             }
             ScriptRunning = true;
+            _scriptRunId = Guid.NewGuid().ToString("N");
         }
 
-        using IDiagnosticActivity startActivity = _diagnostics.BeginActivity("Script", "Start");
+        string scriptCorrelationId;
+        lock (_threadLock)
+        {
+            scriptCorrelationId = _scriptRunId!;
+        }
+
+        using IDiagnosticActivity startActivity = _diagnostics.BeginActivity("Script", "Start", scriptCorrelationId);
 
         try
         {
@@ -208,9 +224,14 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
                     UnloadPreviousScript();
                     ScriptCts?.Dispose();
                     ScriptCts = null;
-                    _diagnostics.RecordEvent("Script", "Stopped");
+                    _diagnostics.RecordEvent("Script", "Stopped", correlationId: scriptCorrelationId);
                     StrongReferenceMessenger.Default.Send<ScriptStoppedMessage, int>((int)MessageChannels.ScriptStatus);
                     ScriptRunning = false;
+                    lock (_threadLock)
+                    {
+                        if (string.Equals(_scriptRunId, scriptCorrelationId, StringComparison.Ordinal))
+                            _scriptRunId = null;
+                    }
                 }
             })
             {
@@ -225,7 +246,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             }
 
             StrongReferenceMessenger.Default.Send<ScriptStartedMessage, int>((int)MessageChannels.ScriptStatus);
-            _diagnostics.RecordEvent("Script", "Started");
+            _diagnostics.RecordEvent("Script", "Started", correlationId: scriptCorrelationId);
 
             if (needsConfig)
             {
@@ -244,10 +265,11 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         }
         catch (Exception e)
         {
-            _diagnostics.RecordEvent("Script", "StartFailed");
+            _diagnostics.RecordEvent("Script", "StartFailed", correlationId: scriptCorrelationId);
             lock (_threadLock)
             {
                 ScriptRunning = false;
+                _scriptRunId = null;
             }
             return e;
         }
@@ -266,7 +288,13 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
 
     public async ValueTask StopScript(bool runScriptStoppingEvent = true)
     {
-        _diagnostics.RecordEvent("Script", "StopRequested");
+        string? scriptCorrelationId;
+        lock (_threadLock)
+        {
+            scriptCorrelationId = _scriptRunId;
+        }
+
+        _diagnostics.RecordEvent("Script", "StopRequested", correlationId: scriptCorrelationId);
         lock (_stateLock)
         {
             _runScriptStoppingBool = runScriptStoppingEvent;
@@ -333,7 +361,13 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     [RequiresUnreferencedCode("This method may require code that cannot be statically analyzed for trimming. Use with caution.")]
     public object? Compile(string source)
     {
-        using IDiagnosticActivity compileActivity = _diagnostics.BeginActivity("Script", "Compile");
+        string? scriptCorrelationId;
+        lock (_threadLock)
+        {
+            scriptCorrelationId = _scriptRunId;
+        }
+
+        using IDiagnosticActivity compileActivity = _diagnostics.BeginActivity("Script", "Compile", scriptCorrelationId);
         CheckScriptVersionRequirement(source);
 
         Stopwatch sw = Stopwatch.StartNew();
@@ -377,7 +411,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             _currentLoadContext = loadContext;
         }
 
-        using IDiagnosticActivity includeActivity = _diagnostics.BeginActivity("Script", "CompileIncludes");
+        using IDiagnosticActivity includeActivity = _diagnostics.BeginActivity("Script", "CompileIncludes", scriptCorrelationId);
         List<string> compiledIncludes = CompileIncludedFiles(references, loadContext);
 
         references.UnionWith(compiledIncludes);
@@ -402,6 +436,8 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
         if (references.Count > 0)
             compiler.AddAssemblies(references.ToArray());
 
+        bool cacheHit = Compiler.IsCompiled(cacheHash);
+        _diagnostics.RecordEvent("Script", cacheHit ? "CompileCacheHit" : "CompileCacheMiss", correlationId: scriptCorrelationId);
         dynamic? assembly = compiler.CompileClass(final, cacheHash, loadContext, scriptName);
 
         sw.Stop();
@@ -517,7 +553,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
     {
         Skua.Core.Models.Scripts.ScriptPathResolution resolution = _pathResolver.Resolve(ownerFile, specifier);
         if (resolution.IsAmbiguous)
-            _diagnostics.RecordEvent("Script", "ImportAmbiguous");
+            _diagnostics.RecordEvent("Script", "ImportAmbiguous", correlationId: GetScriptCorrelationId());
 
         return resolution.SelectedPath;
     }
@@ -832,6 +868,7 @@ public partial class ScriptManager : ObservableObject, IScriptManager, IDisposab
             fileInfoCache[includedFile] = (includeSource, includeFileName, includeHash, compiledPath);
         });
 
+        _diagnostics.RecordEvent("Script", "IncludeCacheFiles", validCachedFiles.Count, "files", GetScriptCorrelationId());
         HashSet<string> processed = new(validCachedFiles);
         HashSet<string> includedFilesSet;
         _includedFilesLock.EnterReadLock();

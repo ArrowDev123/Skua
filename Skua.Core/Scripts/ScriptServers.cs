@@ -15,7 +15,8 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         Lazy<IScriptWait> wait,
         Lazy<IScriptOption> options,
         Lazy<IScriptBotStats> stats,
-        Lazy<IScriptManager> manager)
+        Lazy<IScriptManager> manager,
+        IDiagnosticsService diagnostics)
     {
         _lazyFlash = flash;
         _lazyPlayer = player;
@@ -23,6 +24,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
         _lazyOptions = options;
         _lazyStats = stats;
         _lazyManager = manager;
+        _diagnostics = diagnostics;
     }
 
     private readonly Lazy<IFlashUtil> _lazyFlash;
@@ -31,6 +33,7 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
     private readonly Lazy<IScriptOption> _lazyOptions;
     private readonly Lazy<IScriptBotStats> _lazyStats;
     private readonly Lazy<IScriptManager> _lazyManager;
+    private readonly IDiagnosticsService _diagnostics;
 
     private IFlashUtil Flash => _lazyFlash.Value;
     private IScriptPlayer Player => _lazyPlayer.Value;
@@ -228,11 +231,13 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
 
     private async Task<bool> EnsureLogin(Server server, CancellationToken token)
     {
+        using IDiagnosticActivity reloginActivity = _diagnostics.BeginActivity("Relogin", "EnsureLogin");
         int tries = 0;
         try
         {
             while (!token.IsCancellationRequested && !Manager.ShouldExit && !IsConnected && Player is { Playing: false, Loaded: false } && ++tries < Options.ReloginTries)
             {
+                _diagnostics.RecordEvent("Relogin", "Attempt", tries, "count");
                 if (!IsConnected && tries % 10 == 0 && tries > 0)
                 {
                     Logout();
@@ -253,6 +258,8 @@ public partial class ScriptServers : ObservableRecipient, IScriptServers
             }
         }
         catch { }
-        return Player.Playing;
+        bool succeeded = Player.Playing;
+        _diagnostics.RecordEvent("Relogin", succeeded ? "Succeeded" : "Failed", tries, "attempts");
+        return succeeded;
     }
 }

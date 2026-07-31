@@ -1,6 +1,7 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Skua.Core.Interfaces;
 using Skua.Core.Models;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -9,6 +10,16 @@ namespace Skua.Core.GameProxy;
 
 public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
 {
+    private readonly IDiagnosticsService _diagnostics;
+    private long _outboundBytes;
+    private long _inboundBytes;
+    private long _outboundPackets;
+    private long _inboundPackets;
+    private long _interceptorInvocations;
+    private long _interceptorElapsedTicks;
+    private long _forwardingDrops;
+    private long _forwardingExceptions;
+    private long _activeStreams;
     private CancellationTokenSource? _captureProxyCTS;
 
     /// <summary>
@@ -25,12 +36,18 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
     private TcpClient? _client;
     private int _listenPort = DefaultPort;
 
+    public CaptureProxy(IDiagnosticsService diagnostics)
+    {
+        _diagnostics = diagnostics;
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedRecipients]
     private bool _running;
 
     public void Start()
     {
+        ResetDiagnosticsCounters();
         if (Destination == null)
             return;
         Running = true;
@@ -60,6 +77,7 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
             _client.Close();
             _client.Dispose();
         }
+        RecordDiagnosticsSummary();
         Running = false;
     }
 
@@ -92,10 +110,10 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
 
                 _client = localClient;
                 _forwarder = localForwarder;
-
                 TcpClient client = localClient;
                 TcpClient forwarder = localForwarder;
 
+                Interlocked.Add(ref _activeStreams, 2);
                 Task.Factory.StartNew(() => _DataInterceptor(client, forwarder, true, token), token);
                 Task.Factory.StartNew(() => _DataInterceptor(forwarder, client, false, token), token);
             }
@@ -145,11 +163,27 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
                     cpacket.Clear();
 
                     MessageInfo message = new(Encoding.UTF8.GetString(data, 0, data.Length));
+                    if (outbound)
+                    {
+                        Interlocked.Increment(ref _outboundPackets);
+                        Interlocked.Add(ref _outboundBytes, data.Length);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref _inboundPackets);
+                        Interlocked.Add(ref _inboundBytes, data.Length);
+                    }
+
                     if (Interceptors.Count > 0)
                     {
                         IInterceptor[] currentInterceptors = Interceptors.OrderBy(i => i.Priority).ToArray();
+                        long interceptorStart = Stopwatch.GetTimestamp();
                         foreach (IInterceptor interceptor in currentInterceptors)
+                        {
                             interceptor.Intercept(message, outbound);
+                            Interlocked.Increment(ref _interceptorInvocations);
+                        }
+                        Interlocked.Add(ref _interceptorElapsedTicks, Stopwatch.GetTimestamp() - interceptorStart);
                     }
 
                     if (message.Send)
@@ -159,6 +193,10 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
                         Buffer.BlockCopy(contentBytes, 0, msg, 0, contentBytes.Length);
                         await destStream.WriteAsync(msg, token).ConfigureAwait(false);
                     }
+                    else
+                    {
+                        Interlocked.Increment(ref _forwardingDrops);
+                    }
                 }
             }
         }
@@ -166,13 +204,46 @@ public partial class CaptureProxy : ObservableRecipient, ICaptureProxy
         {
             /* Cancelled */
         }
+        catch (Exception)
+        {
+            Interlocked.Increment(ref _forwardingExceptions);
+        }
         finally
         {
+            Interlocked.Decrement(ref _activeStreams);
             targetStream?.Dispose();
             destStream?.Dispose();
             try { target.Close(); } catch { }
             try { destination.Close(); } catch { }
         }
+    }
+
+    private void ResetDiagnosticsCounters()
+    {
+        Interlocked.Exchange(ref _outboundBytes, 0);
+        Interlocked.Exchange(ref _inboundBytes, 0);
+        Interlocked.Exchange(ref _outboundPackets, 0);
+        Interlocked.Exchange(ref _inboundPackets, 0);
+        Interlocked.Exchange(ref _interceptorInvocations, 0);
+        Interlocked.Exchange(ref _interceptorElapsedTicks, 0);
+        Interlocked.Exchange(ref _forwardingDrops, 0);
+        Interlocked.Exchange(ref _forwardingExceptions, 0);
+        Interlocked.Exchange(ref _activeStreams, 0);
+    }
+
+    private void RecordDiagnosticsSummary()
+    {
+        _diagnostics.RecordEvent("Proxy", "OutboundBytes", Interlocked.Read(ref _outboundBytes), "bytes");
+        _diagnostics.RecordEvent("Proxy", "InboundBytes", Interlocked.Read(ref _inboundBytes), "bytes");
+        _diagnostics.RecordEvent("Proxy", "OutboundPackets", Interlocked.Read(ref _outboundPackets), "packets");
+        _diagnostics.RecordEvent("Proxy", "InboundPackets", Interlocked.Read(ref _inboundPackets), "packets");
+        _diagnostics.RecordEvent("Proxy", "InterceptorInvocations", Interlocked.Read(ref _interceptorInvocations), "calls");
+        long elapsedTicks = Interlocked.Read(ref _interceptorElapsedTicks);
+        double elapsedMilliseconds = elapsedTicks * 1000d / Stopwatch.Frequency;
+        _diagnostics.RecordEvent("Proxy", "InterceptorTime", elapsedMilliseconds, "ms");
+        _diagnostics.RecordEvent("Proxy", "ForwardingDrops", Interlocked.Read(ref _forwardingDrops), "messages");
+        _diagnostics.RecordEvent("Proxy", "ForwardingExceptions", Interlocked.Read(ref _forwardingExceptions), "exceptions");
+        _diagnostics.RecordEvent("Proxy", "ActiveStreams", Interlocked.Read(ref _activeStreams), "streams");
     }
 
     private static byte[] _ToBytes(string s)

@@ -1,6 +1,7 @@
 using Skua.Core.Interfaces;
 using Skua.Core.Models.Diagnostics;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace Skua.Core.Services;
 
@@ -137,6 +138,35 @@ public sealed class DiagnosticsService : IDiagnosticsService
         }
 
         _shutdown.Dispose();
+    }
+
+    public async Task ExportAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("An export path is required.", nameof(path));
+
+        DiagnosticSnapshot? latestSnapshot;
+        DiagnosticSnapshot[] snapshots;
+        DiagnosticEvent[] events;
+        lock (_sync)
+        {
+            latestSnapshot = _latestSnapshot;
+            snapshots = _snapshots.ToArray();
+            events = _events.ToArray();
+        }
+
+        await using FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+        await JsonSerializer.SerializeAsync(
+            stream,
+            new
+            {
+                ExportedAt = DateTimeOffset.UtcNow,
+                LatestSnapshot = latestSnapshot,
+                Snapshots = snapshots,
+                Events = events
+            },
+            new JsonSerializerOptions { WriteIndented = true },
+            cancellationToken);
     }
 
     private async Task SampleLoopAsync(CancellationToken token)

@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+﻿using System.Diagnostics;
+using CommunityToolkit.Mvvm.Messaging;
 using Newtonsoft.Json;
 using Skua.Core.Interfaces;
 using Skua.Core.Messaging;
@@ -20,6 +21,13 @@ public class ScriptWait : IScriptWait
     private readonly Lazy<IScriptQuest> _lazyQuests;
     private readonly Lazy<IScriptDrop> _lazyDrops;
     private readonly Lazy<IScriptSkill> _lazySkills;
+    private readonly IDiagnosticsService _diagnostics;
+    private const int WaitDiagnosticsFlushSeconds = 10;
+    private long _waitCompleted;
+    private long _waitTimedOut;
+    private long _waitPolls;
+    private long _waitElapsedTicks;
+    private long _lastWaitDiagnosticsFlushTimestamp;
 
     private IFlashUtil Flash => _lazyFlash.Value;
     private IScriptPlayer Player => _lazyPlayer.Value;
@@ -44,7 +52,8 @@ public class ScriptWait : IScriptWait
         Lazy<IScriptHouseInv> house,
         Lazy<IScriptQuest> quests,
         Lazy<IScriptDrop> drops,
-        Lazy<IScriptSkill> skills)
+        Lazy<IScriptSkill> skills,
+        IDiagnosticsService diagnostics)
     {
         _lazyFlash = flash;
         _lazyPlayer = player;
@@ -57,6 +66,7 @@ public class ScriptWait : IScriptWait
         _lazyQuests = quests;
         _lazyDrops = drops;
         _lazySkills = skills;
+        _diagnostics = diagnostics;
 
         StrongReferenceMessenger.Default.Register<ScriptWait, ItemBoughtMessage>(this, (r, m) => r._itemBuyEvent.Set());
         StrongReferenceMessenger.Default.Register<ScriptWait, ItemSoldMessage>(this, (r, m) => r._itemSellEvent.Set());
@@ -276,23 +286,35 @@ public class ScriptWait : IScriptWait
 
     public bool ForTrue(Func<bool> predicate, Action? loopFunction, int timeout, int sleepOverride = -1)
     {
+        long startTimestamp = _diagnostics.Enabled ? Stopwatch.GetTimestamp() : 0;
         int counter = 0;
-        while (!predicate() && !Manager.ShouldExit)
+        bool completed = false;
+        try
         {
-            if (timeout > 0 && counter >= timeout)
-                return false;
-            loopFunction?.Invoke();
-            Thread.Sleep(sleepOverride == -1 ? WAIT_SLEEP : sleepOverride);
-            counter++;
+            while (!predicate() && !Manager.ShouldExit)
+            {
+                if (timeout > 0 && counter >= timeout)
+                    return false;
+                loopFunction?.Invoke();
+                Thread.Sleep(sleepOverride == -1 ? WAIT_SLEEP : sleepOverride);
+                counter++;
+            }
+            completed = true;
+            return true;
         }
-        return true;
+        finally
+        {
+            RecordWaitDiagnostics(completed, counter, startTimestamp);
+        }
     }
 
     public async ValueTask<bool> ForTrueAsync(Func<bool> predicate, Action? loopFunction, int timeout, int sleepOverride = -1, CancellationToken token = default)
     {
+        long startTimestamp = _diagnostics.Enabled ? Stopwatch.GetTimestamp() : 0;
+        int counter = 0;
+        bool completed = false;
         try
         {
-            int counter = 0;
             while (!predicate() && !Manager.ShouldExit && !token.IsCancellationRequested)
             {
                 if (timeout > 0 && counter >= timeout)
@@ -301,12 +323,55 @@ public class ScriptWait : IScriptWait
                 await Task.Delay(sleepOverride == -1 ? WAIT_SLEEP : sleepOverride, token);
                 counter++;
             }
+            completed = true;
             return true;
         }
-        catch { }
-        return false;
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            RecordWaitDiagnostics(completed, counter, startTimestamp);
+        }
     }
 
+    private void RecordWaitDiagnostics(bool completed, int polls, long startTimestamp)
+    {
+        if (!_diagnostics.Enabled)
+            return;
+
+        if (completed)
+            Interlocked.Increment(ref _waitCompleted);
+        else
+            Interlocked.Increment(ref _waitTimedOut);
+        Interlocked.Add(ref _waitPolls, polls);
+        Interlocked.Add(ref _waitElapsedTicks, Stopwatch.GetTimestamp() - startTimestamp);
+
+        long now = Stopwatch.GetTimestamp();
+        long last = Volatile.Read(ref _lastWaitDiagnosticsFlushTimestamp);
+        if (last == 0)
+        {
+            Interlocked.CompareExchange(ref _lastWaitDiagnosticsFlushTimestamp, now, 0);
+            return;
+        }
+
+        if (now - last < Stopwatch.Frequency * WaitDiagnosticsFlushSeconds ||
+            Interlocked.CompareExchange(ref _lastWaitDiagnosticsFlushTimestamp, now, last) != last)
+            return;
+
+        long completedCount = Interlocked.Exchange(ref _waitCompleted, 0);
+        long timedOutCount = Interlocked.Exchange(ref _waitTimedOut, 0);
+        long pollCount = Interlocked.Exchange(ref _waitPolls, 0);
+        long elapsedTicks = Interlocked.Exchange(ref _waitElapsedTicks, 0);
+        if (completedCount == 0 && timedOutCount == 0)
+            return;
+
+        _diagnostics.RecordEvent("Wait", "CompletedOperations", completedCount, "operations");
+        _diagnostics.RecordEvent("Wait", "TimedOutOperations", timedOutCount, "operations");
+        _diagnostics.RecordEvent("Wait", "Polls", pollCount, "polls");
+        _diagnostics.RecordEvent("Wait", "Duration", elapsedTicks * 1000d / Stopwatch.Frequency, "ms");
+    }
     public bool ForActionCooldown(GameActions action, int timeout = 40)
     {
         return ForActionCooldown(lockedActions[action], OverrideTimeout ? GameActionTimeout : timeout);

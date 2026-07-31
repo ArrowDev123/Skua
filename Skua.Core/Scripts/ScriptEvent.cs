@@ -9,8 +9,9 @@ public class ScriptEvent : IScriptEvent, IDisposable
 {
     private GameStateChannel? _stateChannel;
 
-    public ScriptEvent()
+    public ScriptEvent(IDiagnosticsService diagnostics)
     {
+        _diagnostics = diagnostics;
         _messenger = StrongReferenceMessenger.Default;
         _messenger.Register<ScriptEvent, ScriptStoppingRequestMessage, int>(this, (int)MessageChannels.ScriptStatus, OnScriptStopping);
         _messenger.Register<ScriptEvent, ScriptStartedMessage, int>(this, (int)MessageChannels.ScriptStatus, ScriptStarted);
@@ -45,6 +46,7 @@ public class ScriptEvent : IScriptEvent, IDisposable
     }
 
     private readonly IMessenger _messenger;
+    private readonly IDiagnosticsService _diagnostics;
 
     public event LogoutEventHandler? Logout;
 
@@ -198,6 +200,7 @@ public class ScriptEvent : IScriptEvent, IDisposable
 
     public void OnMapChanged(ScriptEvent recipient, MapChangedMessage message)
     {
+        recipient._diagnostics.RecordEvent("Game", "MapChanged");
         recipient.MapChanged?.Invoke(message.Map);
         recipient.PublishStateChange(GameStateCategories.MapChanged, message.Map);
     }
@@ -209,6 +212,7 @@ public class ScriptEvent : IScriptEvent, IDisposable
 
     public void OnReloginTriggered(ScriptEvent recipient, ReloginTriggeredMessage message)
     {
+        recipient._diagnostics.RecordEvent("Relogin", "Triggered", message.WasKicked ? 1 : 0, "kicked");
         recipient.ReloginTriggered?.Invoke(message.WasKicked);
     }
 

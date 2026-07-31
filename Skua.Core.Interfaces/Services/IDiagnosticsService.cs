@@ -27,4 +27,6 @@ public interface IDiagnosticsService : IAsyncDisposable
     IReadOnlyList<DiagnosticSnapshot> GetRecentSnapshots();
 
     IReadOnlyList<DiagnosticEvent> GetRecentEvents();
+
+    Task ExportAsync(string path, CancellationToken cancellationToken = default);
 }
