@@ -1,0 +1,76 @@
+name: Stable Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate stable source
+    uses: ./.github/workflows/validation.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Package and publish stable release
+    needs: validate
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: dotnet tool install --global vpk --version 1.2.0
+
+      - name: Validate release tag
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
+              throw ('Release tag ''{0}'' must be vMAJOR.MINOR.PATCH.' -f $env:RELEASE_TAG)
+          }
+
+          'version={0}' -f $Matches.version >> $env:GITHUB_OUTPUT
+
+      - name: Build Velopack release
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: .\Publish-Velopack.ps1 -Configuration Release -Runtime win-x64 -Channel win -Version $env:RELEASE_VERSION
+
+      - name: Publish stable release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $files = Get-ChildItem -LiteralPath 'artifacts/velopack/releases' -File | ForEach-Object FullName
+          if (-not $files) {
+              throw 'No Velopack release files were produced.'
+          }
+
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) {
+              gh release upload $env:RELEASE_TAG $files --clobber
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to replace stable release assets.' }
+          }
+          else {
+              $arguments = @('release', 'create', $env:RELEASE_TAG) + $files + @('--title', ('Skua ' + $env:RELEASE_TAG), '--generate-notes')
+              gh @arguments
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to create the stable release.' }
+          }
