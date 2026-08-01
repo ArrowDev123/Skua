@@ -35,6 +35,20 @@ jobs:
         shell: pwsh
         run: dotnet tool install --global vpk --version 1.2.0
 
+      - name: Cache Apache Flex SDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/apache-flex-sdk-4.16.1
+          key: windows-flex-sdk-4.16.1-${{ hashFiles('Skua.AS3/playerglobal/28.0/playerglobal.swc') }}
+
+      - name: Install Apache Flex SDK
+        shell: pwsh
+        run: .\.github\scripts\Install-FlexSdk.ps1
+
+      - name: Build AS3 game content
+        shell: pwsh
+        run: .\Skua.AS3\compile-as3.ps1 -MxmlcPath "$env:FLEX_HOME\bin\mxmlc.bat"
+
       - name: Validate release tag
         id: version
         shell: pwsh

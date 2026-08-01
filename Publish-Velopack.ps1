@@ -31,6 +31,7 @@ $publishRoot = Join-Path $artifactRoot 'publish'
 $releaseRoot = Join-Path $artifactRoot 'releases'
 $appOutput = Join-Path $root ("Skua.App.Avalonia\bin\{0}\net10.0-windows" -f $Configuration)
 $managerOutput = Join-Path $root ("Skua.Manager.Avalonia\bin\{0}\net10.0" -f $Configuration)
+$gameContent = Join-Path $root 'Skua.AS3\skua\bin\skua.swf'
 
 dotnet restore '.\Skua.sln' -m --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Solution restore failed.' }
@@ -45,9 +46,16 @@ New-Item -ItemType Directory -Path $publishRoot, $releaseRoot -Force | Out-Null
 
 if (-not (Test-Path -LiteralPath $appOutput)) { throw "Avalonia app output was not found: $appOutput" }
 if (-not (Test-Path -LiteralPath $managerOutput)) { throw "Avalonia manager output was not found: $managerOutput" }
+if (-not (Test-Path -LiteralPath $gameContent)) {
+    throw "Game content was not found: $gameContent. Build it with .\Skua.AS3\compile-as3.ps1 before packaging."
+}
 
 Copy-Item -Path (Join-Path $appOutput '*') -Destination $publishRoot -Recurse -Force
 Copy-Item -Path (Join-Path $managerOutput '*') -Destination $publishRoot -Recurse -Force
+
+if (-not (Test-Path -LiteralPath (Join-Path $publishRoot 'skua.swf'))) {
+    throw 'Velopack staging did not contain skua.swf.'
+}
 
 $framework = if ($Runtime -eq 'win-x86') { 'net10.0-x86-desktop' } else { 'net10.0-x64-desktop' }
 
