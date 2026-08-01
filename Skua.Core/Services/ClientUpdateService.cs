@@ -31,7 +31,8 @@ public class ClientUpdateService : IClientUpdateService
         try
         {
             _updateManager = GetUpdateManager();
-            _pendingUpdate = await _updateManager.CheckForUpdatesAsync();
+            Velopack.UpdateInfo? update = await _updateManager.CheckForUpdatesAsync();
+            _pendingUpdate = ShouldOfferUpdate(update) ? update : null;
         }
         catch (Exception e)
         {
@@ -46,7 +47,11 @@ public class ClientUpdateService : IClientUpdateService
         try
         {
             _updateManager = GetUpdateManager();
-            _pendingUpdate ??= await _updateManager.CheckForUpdatesAsync();
+            if (_pendingUpdate is null)
+            {
+                Velopack.UpdateInfo? update = await _updateManager.CheckForUpdatesAsync();
+                _pendingUpdate = ShouldOfferUpdate(update) ? update : null;
+            }
 
             if (_pendingUpdate is null)
             {
@@ -67,6 +72,20 @@ public class ClientUpdateService : IClientUpdateService
             progress?.Report("Error while updating.");
             _dialogService.ShowMessageBox($"Error Message:\r\n{e.Message}", "Update Error");
         }
+    }
+
+    private bool ShouldOfferUpdate(Velopack.UpdateInfo? update)
+    {
+        if (update is null)
+            return false;
+
+        if (!UsingNightlyChannel)
+            return true;
+
+        return !string.Equals(
+            update.TargetFullRelease.Version.ToString(),
+            ClientFileSources.AssemblyVersion,
+            StringComparison.Ordinal);
     }
 
     private UpdateManager GetUpdateManager()
