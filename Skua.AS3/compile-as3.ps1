@@ -29,6 +29,14 @@ if ([string]::IsNullOrWhiteSpace($MxmlcPath) -or -not (Test-Path -LiteralPath $M
     throw 'Apache Flex mxmlc was not found. Install Apache Flex SDK 4.16.1 or pass -MxmlcPath.'
 }
 
+if (-not $env:FLEX_HOME) {
+    $mxmlcDirectory = Split-Path -Parent (Resolve-Path -LiteralPath $MxmlcPath).Path
+    $env:FLEX_HOME = Split-Path -Parent $mxmlcDirectory
+}
+if (-not $env:PLAYERGLOBAL_HOME) {
+    $env:PLAYERGLOBAL_HOME = Join-Path $env:FLEX_HOME 'frameworks\libs\player'
+}
+
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 
 & $MxmlcPath `

@@ -57,8 +57,13 @@ if ($actualPlayerGlobalHash -ne $expectedPlayerGlobalHash) {
     throw 'PlayerGlobal 28 checksum validation failed.'
 }
 
+$playerGlobalHome = Split-Path -Parent $playerGlobalDirectory
+$env:FLEX_HOME = $sdkDirectory.FullName
+$env:PLAYERGLOBAL_HOME = $playerGlobalHome
+
 if ($env:GITHUB_ENV) {
-    "FLEX_HOME=$($sdkDirectory.FullName)" >> $env:GITHUB_ENV
+    "FLEX_HOME=$($env:FLEX_HOME)" >> $env:GITHUB_ENV
+    "PLAYERGLOBAL_HOME=$($env:PLAYERGLOBAL_HOME)" >> $env:GITHUB_ENV
 }
 
 Write-Host "Apache Flex SDK ready: $($sdkDirectory.FullName)" -ForegroundColor Green
